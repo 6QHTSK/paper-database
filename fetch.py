@@ -1,60 +1,103 @@
+"""
+用于拉取arxiv上的数据的程序部分
+内含函数：
+fetch_data
+"""
 from bs4 import BeautifulSoup
 import requests as rq
 import time
 
 
-def fetch_data(start_year, end_year, offset):
+def _get_time_stamp(time_str):
+    """
+    将arxiv的时间字符串转换为时间戳
+    :param time_str arxiv的时间字符串
+    :return: 时间戳
+    """
+    time_array = time.strptime(time_str, "%Y-%m-%dT%H:%M:%SZ")
+    time_stamp = int(time.mktime(time_array))
+    return time_stamp
+
+
+def total_essay_number():
+    """
+    返回arxiv上的cs.AI相关的所有论文数量
+    :return: 是否成功获得（True、False），若成功第二项为论文数量
+    """
+    search_result = rq.get(
+        "http://export.arxiv.org/api/query?search_query=cat:cs.AI")  # 拉取搜索页面的超长网址
+
+    if search_result.status_code != 200:  # 非正常返回，返回报错
+        return False, None
+
+    search_soup = BeautifulSoup(search_result.text, features="html.parser")  # 使用BeautifulSoup识别网页
+
+    return True, int(search_soup.find("opensearch:totalresults").text)
+
+
+def fetch_data(offset, max_results=1000):
+    """
+    拉取arxiv的论文信息, 默认按时间由晚到早排序
+    :param offset: 起始条数的位移，用于翻页
+    :param max_results: 单次返回数据的最多条数,默认1000
+    :return: True/False，若True则第二项为一个字典组成的列表，包含这部分论文的所有信息
+    """
     essays = []
-    for year in range(start_year, end_year):
-        search_result = rq.get(
-            "https://arxiv.org/search/advanced?advanced=&terms-0-operator=AND&terms-0-term=cs.AI&terms-0-field=all"
-            "&classification-computer_science=y&classification-physics_archives=all&classification-include_cross_list"
-            "=include&date-filter_by=specific_year&date-year={}"
-            "&date-from_date=&date-to_date=&date-date_type=submitted_date&abstracts=show&size=200&order"
-            "=-announced_date_first&start={}".format(year, offset))  # 拉取搜索页面的超长网址
+    search_result = rq.get(
+        "http://export.arxiv.org/api/query?search_query=cat:cs.AI&sortBy=lastUpdatedDate&sortOrder=descending"
+        "&start={}&max_results={}".format(offset, max_results))  # 拉取搜索页面的超长网址
 
-        if search_result.status_code != 200:  # 非正常返回，返回报错
-            return False, None
+    if search_result.status_code != 200:  # 非正常返回，返回报错
+        return False, None
 
-        search_soup = BeautifulSoup(search_result.text, features="html.parser") # 使用BeautifulSoup识别网页
+    search_soup = BeautifulSoup(search_result.text, features="html.parser")  # 使用BeautifulSoup识别网页
+    entries = search_soup.find_all("entry")  # 解析所有该页的的条目
 
-        if search_soup.find("h1", class_="title").text.strip().find("no results") != -1:  # 找不到，返回报错
-            return False, None
+    for entry in entries:
+        # 首先对可以直接解析的部分进行解析
+        essay = {"id": entry.id.text.replace("http://arxiv.org/abs/", "arxiv:"),
+                 "title": entry.title.text.replace('\n', "").strip(),
+                 "authors": [], "summary": entry.summary.text.replace('\n', "").strip(), "category": [],
+                 "pdf": entry.find("link", title="pdf").attrs["href"], "essay_details": entry.id.text,
+                 "updated": _get_time_stamp(entry.updated.text), "published": _get_time_stamp(entry.published.text)}
 
-        lines = search_soup.find_all("li", class_="arxiv-result") # 解析所有该页的的条目
+        category = entry.find_all("category")  # 读取 category 信息，也就是tag
+        for tag in category:
+            essay["category"].append(tag.attrs["term"])  # 每一个tag存放于term 的 attrs 中
 
-        for line in lines:
-            essay = {"id": line.find("p", class_="list-title").find("a").text.strip(),  # id:arxiv id
-                     "title": line.find("p", class_="title").text.strip(), "authors": [], # title: 文章标题，author: 作者的列表
-                     "abstract": line.find("p", class_="abstract").find("span", class_="abstract-full").text.strip(), # abstract 摘要
-                     "tags": []}  # tags 标签的列表
-            tags = line.find("div", class_="tags").find_all("span", class_="tag") # 读取 tag 信息
-            for tag in tags:
-                essay["tags"].append(tag.text.strip()) # tag存放于span标签中，此处剥去span外壳
+        authors = entry.find_all("author")  # 读取 author 信息
+        for author in authors:
+            essay["authors"].append(author.find("name").text)  # author 存放于name标签中，此处剥去name标签
 
-            authors = line.find("p", class_="authors").find_all("a") # 读取author 信息
-            for author in authors:
-                essay["authors"].append(author.text.strip()) # author 存放与a标签中，此处剥去a标签
-            times = line.find("p", class_="is-size-7").contents # 提交时间和宣布时间所在的p是最早出现 is-size-7 class 的地方
-            essay["submitted_time"] = times[1].strip() # 提交时间，这里写死了
-            essay["originally_announced"] = times[3].strip() # 宣布时间，这里写死了
-            comments = line.find_all("p", class_="comments") # comments部分，可能有多个部分
-            if comments is not None:
-                for comment in comments:
-                    if comment.contents[1].text.strip() == "Comments:": # 一般的comments
-                        essay["comments"] = comment.text.replace("Comments:", "").strip()
-                    elif comment.contents[1].text.strip() == "Journal ref:": # 引用
-                        essay["journal_ref"] = comment.text.replace("Journal ref:", "").strip()
-                    else: # 好像到这里的基本上都是那几个编号，明天给它加一下识别
-                        if essay["other_comments"] is None:
-                            essay["other_comments"] = [comment.text.strip()]
-                        else:
-                            essay["other_comments"].append(comment.text.strip())
-            essays.append(essay) # 将本片文章加入文章的集合中
+        primary_category = entry.find("arxiv:primary_category")  # 主要分类 primary_category 部分, 可能为none
+        if primary_category is not None:
+            essay["primary_category"] = primary_category.attrs["term"]
+        else:
+            essay["primary_category"] = None
 
-        time.sleep(2) # 休息两秒，防止api爬虫被封
-    return True, essays # 返回文章集合中
+        comment = entry.find("arxiv:comment")  # comments 部分， 可能为none
+        if comment is not None:
+            essay["comment"] = comment.text.strip().replace('\n', "")
+        else:
+            essay["comment"] = None
+
+        journal_ref = entry.find("arxiv:journal_ref")  # journal_ref 部分， 可能为none
+        if journal_ref is not None:
+            essay["journal_ref"] = journal_ref.text.strip().replace('\n', "")
+        else:
+            essay["journal_ref"] = None
+
+        doi = entry.find("arxiv:doi")  # doi 部分， 可能为none
+        if doi is not None:
+            essay["doi"] = doi.text.strip().replace('\n', "")
+        else:
+            essay["doi"] = None
+
+        essays.append(essay)  # 将本片文章加入文章的集合中
+
+    time.sleep(2)  # 休息两秒，防止api爬虫被封
+    return True, essays  # 返回文章集合
 
 
-if "__name__" == "__main__":
-    fetch_data(1993, time.localtime(time.time()).tm_year + 1, 0)
+if __name__ == "__main__":
+    fetch_data(0)
