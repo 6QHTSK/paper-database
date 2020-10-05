@@ -6,6 +6,13 @@ fetch_data
 from bs4 import BeautifulSoup
 import requests as rq
 import time
+import wget
+
+
+def download_pdf(pdf_url, arxiv_id):
+    output_path = ".\\Artificial Intelligence\\" + arxiv_id.replace(":", "_") + ".pdf"
+    wget.download(pdf_url, out=output_path, bar=wget.bar_thermometer)
+    time.sleep(2)
 
 
 def _get_time_stamp(time_str):
@@ -25,7 +32,7 @@ def total_essay_number():
     :return: 是否成功获得（True、False），若成功第二项为论文数量
     """
     search_result = rq.get(
-        "http://export.arxiv.org/api/query?search_query=cat:cs.AI")  # 拉取搜索页面的超长网址
+        "http://export.arxiv.org/api/query?search_query=cat:cs.AI&max_results=0")  # 拉取搜索页面的超长网址
 
     if search_result.status_code != 200:  # 非正常返回，返回报错
         return False, None
@@ -35,7 +42,7 @@ def total_essay_number():
     return True, int(search_soup.find("opensearch:totalresults").text)
 
 
-def fetch_data(offset, max_results=1000):
+def fetch_data(offset, max_results=100):
     """
     拉取arxiv的论文信息, 默认按时间由晚到早排序
     :param offset: 起始条数的位移，用于翻页
@@ -44,7 +51,7 @@ def fetch_data(offset, max_results=1000):
     """
     essays = []
     search_result = rq.get(
-        "http://export.arxiv.org/api/query?search_query=cat:cs.AI&sortBy=lastUpdatedDate&sortOrder=descending"
+        "http://export.arxiv.org/api/query?search_query=cat:cs.AI&sortBy=lastUpdatedDate&sortOrder=ascending"
         "&start={}&max_results={}".format(offset, max_results))  # 拉取搜索页面的超长网址
 
     if search_result.status_code != 200:  # 非正常返回，返回报错
@@ -96,7 +103,8 @@ def fetch_data(offset, max_results=1000):
         essays.append(essay)  # 将本片文章加入文章的集合中
 
     time.sleep(2)  # 休息两秒，防止api爬虫被封
-    return True, essays  # 返回文章集合
+    essays.reverse()
+    return True, essays # 返回文章集合,因为查询到的数据是从早到晚的，这里倒置所以从晚到早
 
 
 if __name__ == "__main__":
