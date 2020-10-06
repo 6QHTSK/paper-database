@@ -5,14 +5,37 @@ fetch_data
 """
 from bs4 import BeautifulSoup
 import requests as rq
+from requests.adapters import HTTPAdapter
 import time
 import wget
+import os
+
+
+s = rq.Session()
+s.mount('http://', HTTPAdapter(max_retries=5))
+s.mount('https://', HTTPAdapter(max_retries=5))
 
 
 def download_pdf(pdf_url, arxiv_id):
+    """
+    拉取pdf信息
+    :param pdf_url: 要拉取的pdf的网址
+    :param arxiv_id: 该论文的arxivid值
+    :return: 无返回
+    """
     output_path = ".\\Artificial Intelligence\\" + arxiv_id.replace(":", "_") + ".pdf"
-    wget.download(pdf_url, out=output_path, bar=wget.bar_thermometer)
-    time.sleep(2)
+    trail_counter = 0
+    if not os.path.exists(output_path):
+        print("downloading essay: {}".format(arxiv_id))
+        while True:
+            try:
+                wget.download(pdf_url, out=output_path, bar=wget.bar_thermometer)
+                break
+            except Exception as e:
+                if trail_counter >= 5:
+                    break
+                print("RETRYING!: {}".format(e))
+                trail_counter = trail_counter + 1
 
 
 def _get_time_stamp(time_str):
@@ -39,6 +62,8 @@ def total_essay_number():
 
     search_soup = BeautifulSoup(search_result.text, features="html.parser")  # 使用BeautifulSoup识别网页
 
+    time.sleep(2) # 防止识别为爬虫
+
     return True, int(search_soup.find("opensearch:totalresults").text)
 
 
@@ -50,12 +75,19 @@ def fetch_data(offset, max_results=100):
     :return: True/False，若True则第二项为一个字典组成的列表，包含这部分论文的所有信息
     """
     essays = []
-    search_result = rq.get(
-        "http://export.arxiv.org/api/query?search_query=cat:cs.AI&sortBy=lastUpdatedDate&sortOrder=ascending"
-        "&start={}&max_results={}".format(offset, max_results))  # 拉取搜索页面的超长网址
-
-    if search_result.status_code != 200:  # 非正常返回，返回报错
-        return False, None
+    trail_counter = 0
+    while True:
+        try:
+            search_result = rq.get(
+                "http://export.arxiv.org/api/query?search_query=cat:cs.AI&sortBy=lastUpdatedDate&sortOrder=ascending"
+                "&start={}&max_results={}".format(offset, max_results))  # 拉取搜索页面的超长网址
+            if search_result.status_code == 200:  # 正常返回，说明拉取到了数据
+                break
+        except Exception as e:
+            if trail_counter > 5:
+                return False, None
+            print("RETRYING!: {}".format(e))
+            trail_counter = trail_counter + 1
 
     search_soup = BeautifulSoup(search_result.text, features="html.parser")  # 使用BeautifulSoup识别网页
     entries = search_soup.find_all("entry")  # 解析所有该页的的条目
@@ -102,9 +134,9 @@ def fetch_data(offset, max_results=100):
 
         essays.append(essay)  # 将本片文章加入文章的集合中
 
-    time.sleep(2)  # 休息两秒，防止api爬虫被封
     essays.reverse()
-    return True, essays # 返回文章集合,因为查询到的数据是从早到晚的，这里倒置所以从晚到早
+    time.sleep(2) # 防止识别为爬虫
+    return True, essays  # 返回文章集合,因为查询到的数据是从早到晚的，这里倒置所以从晚到早
 
 
 if __name__ == "__main__":

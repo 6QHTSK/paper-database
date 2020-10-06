@@ -6,7 +6,6 @@ query
 insert
 """
 import json
-import fetch
 
 
 def init(con):
@@ -52,31 +51,23 @@ def query(con, key, query_str, strict=True):
     return results
 
 
-def insert(con, essays, last_updated):
+def insert(con, essays):
     """
     不经处理的向数据库插入一组论文信息
     :param con: 调用的数据库
     :param essays: 论文信息字典列表
     :param last_updated: 插入截至的时间
-    :return: True: 全部插入成功； False: 部分论文因重复未插入舍弃
+    :return: None
     """
     cur = con.cursor()
     for essay in essays:
-        if essay["updated"] > last_updated or (query(con, "id", essay["id"])) == 0:  # 如果数据库中没有收录该id的论文
-            cur.execute("INSERT INTO essays VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (
-                essay["id"], essay["title"], json.dumps(essay["authors"]), essay["summary"],
-                json.dumps(essay["category"]),
-                essay["pdf"], essay["essay_details"], essay["updated"], essay["published"], essay["primary_category"],
-                essay["comment"], essay["journal_ref"], essay["doi"]
-            ))  # 将论文放入数据库
-            if 1609430400 > essay["updated"] >= 1601481600:  # 在2020年1月1日后发表,2021年1月1日前停止记录
-                fetch.download_pdf(essay["pdf"], essay["id"])
-                print("Download ID: {}".format(essay["id"]))
-        else:
-            con.commit()
-            return False
+        cur.execute("INSERT INTO essays VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+            essay["id"], essay["title"], json.dumps(essay["authors"]), essay["summary"],
+            json.dumps(essay["category"]),
+            essay["pdf"], essay["essay_details"], essay["updated"], essay["published"], essay["primary_category"],
+            essay["comment"], essay["journal_ref"], essay["doi"]
+        ))  # 将论文放入数据库
     con.commit()
-    return True
 
 
 def latest_update_time(con):
