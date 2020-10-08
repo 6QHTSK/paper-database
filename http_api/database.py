@@ -34,20 +34,34 @@ def query(con, key, query_str, strict=True):
     results = []
     available_keys = ["id", "title", "authors", "summary", "category", "pdf", "essay_details", "updated", "published",
                       "primary_category", "comment", "journal_ref", "doi"]
-    if key in available_keys:
+    if key == "all":
+        sql = "SELECT * from essays where False"
+        sql_tuple = tuple()
+        for key in available_keys:
+            if strict:  # 是否使用模糊查询
+                sql = sql + " or {} like ? ".format(key)
+                sql_tuple = sql_tuple + (query_str,)
+            else:
+                sql = sql + " or {} like ? ".format(key)
+                sql_tuple = sql_tuple + ("%" + query_str + "%",)
+        cur.execute(sql, sql_tuple)
+        raw_results = cur.fetchall()
+    elif key in available_keys:
         if strict:  # 是否使用模糊查询
             cur.execute("SELECT * from essays where {} like ?".format(key), (query_str,))
         else:
             cur.execute("SELECT * from essays where {} like ?".format(key), ("%" + query_str + "%",))
         raw_results = cur.fetchall()  # 拉取所有数据库查询到的信息
-        for raw_result in raw_results:
-            # 将数据库存储的信息转化成更易读取的字典形式
-            result = {"id": raw_result[0], "title": raw_result[1], "authors": json.loads(raw_result[2]),
-                      "summary": raw_result[3], "category": json.loads(raw_result[4]), "pdf": raw_result[5],
-                      "essay_details": raw_result[6], "updated": raw_result[7], "published": raw_result[8],
-                      "primary_category": raw_result[9], "comment": raw_result[10], "journal_ref": raw_result[11],
-                      "doi": raw_result[12]}
-            results.append(result)
+    else:
+        return []
+    for raw_result in raw_results:
+        # 将数据库存储的信息转化成更易读取的字典形式
+        result = {"id": raw_result[0], "title": raw_result[1], "authors": json.loads(raw_result[2]),
+                  "summary": raw_result[3], "category": json.loads(raw_result[4]), "pdf": raw_result[5],
+                  "essay_details": raw_result[6], "updated": raw_result[7], "published": raw_result[8],
+                  "primary_category": raw_result[9], "comment": raw_result[10], "journal_ref": raw_result[11],
+                  "doi": raw_result[12]}
+        results.append(result)
     return results
 
 
@@ -81,3 +95,4 @@ def latest_update_time(con):
     if last_update is None:
         last_update = 0
     return last_update
+
