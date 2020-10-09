@@ -47,7 +47,8 @@ lastupdate: 上次更新的各项信息
 
 ```json
 
-{"result": true,
+{
+  "result": true,
   "status": 0,
   "message": "Started!",
   "last_update":
@@ -110,15 +111,23 @@ strict：置为false时进行模糊搜索
 ]
 ```
 
-id: arxiv_id, title: 论文标题
+id: arxiv_id
 
-authors: 作者 summary: 摘要
+title: 论文标题
 
-category: 论文标签 pdf: pdf文件下载地址
+authors: 作者
+
+summary: 摘要
+
+category: 论文标签
+
+pdf: pdf文件下载地址
 
 essay_details: 论文详细信息网址
 
-updated: 更新的时间戳 published: 首次上传的时间戳
+updated: 更新的时间戳
+
+published: 首次上传的时间戳
 
 primary_category: 主要方向标签
 
@@ -160,7 +169,7 @@ status: 0 未进行更新，1 正在更新，2 上次更新已完成
 
 ### /pdf/<arxiv_id>
 
-输入：<arxiv_id> 需要下载的论文的arxiv_id
+输入：arxiv_id 需要下载的论文的arxiv_id
 输出： pdf文件或者404
 
 如果没有该文件且数据库中含有该id记录，则会当场下载。

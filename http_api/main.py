@@ -91,7 +91,7 @@ def query():
     database.init(con)
     if strict is None:  # 防止传入数据不含strict
         strict = True
-    essays = database.query(con, key, query_string, strict) # 在数据库中查询
+    essays = database.query(con, key, query_string, strict)  # 在数据库中查询
     return json.dumps(essays), 200
 
 
@@ -108,10 +108,10 @@ def get_pdf(arxiv_id):
     :return: 下载的论文
     """
     filename = str(arxiv_id).replace(':', '_') + ".pdf"
-    filepath = os.path.join('.\\Artificial Intelligence\\', filename) # 得到pdf可能的路径
-    if os.path.exists(filepath): # 如果有文件，则发送
+    filepath = os.path.join('.\\Artificial Intelligence\\', filename)  # 得到pdf可能的路径
+    if os.path.exists(filepath):  # 如果有文件，则发送
         return flask.send_file(filepath)
-    else: # 如果没有，则尝试立即下载
+    else:  # 如果没有，则尝试立即下载
         query_result = database.query(get_db(), 'id', arxiv_id)
         if len(query_result) == 1:
             fetch.download_pdf(query_result[0]['pdf'], arxiv_id)
@@ -129,4 +129,4 @@ def start():
     scheduler = APScheduler()  # 实例化APScheduler
     scheduler.init_app(server)  # 把任务列表载入实例flask
     scheduler.start()  # 启动任务计划
-    server.run(port=port, host=host) # 运行api
+    server.run(port=port, host=host)  # 运行api

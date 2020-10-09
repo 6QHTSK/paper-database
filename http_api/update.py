@@ -7,21 +7,21 @@ import os
 import database
 import fetch
 
-cool_down = 10800 #拉取冷却时间
-request_max_results = 1000 #单次拉取最多结果
-pdf_start_time = 1601481600 #pdf拉取最早时间
-pdf_end_time = 1609430400 #pdf拉取最晚时间
+cool_down = 10800  # 拉取冷却时间
+request_max_results = 1000  # 单次拉取最多结果
+pdf_start_time = 1601481600  # pdf拉取最早时间
+pdf_end_time = 1609430400  # pdf拉取最晚时间
 
 
 def init(init_cool_down=10800, init_max_result=1000, init_start_time=1601481600, init_end_time=1609430400):
-    '''
+    """
     update文件初始化
     :param init_cool_down: 拉取冷却时间初始化
     :param init_max_result: 单次拉取最多结果
     :param init_start_time: pdf拉取最早时间
     :param init_end_time: pdf拉取最晚时间
     :return: 无返回
-    '''
+    """
     global cool_down, request_max_results, pdf_start_time, pdf_end_time
     cool_down = init_cool_down
     request_max_results = init_max_result
@@ -34,34 +34,34 @@ update_task = None  # 拉取论文的任务
 database_last_update = 0  # 最后的数据库更新时间，
 update_process = ""  # update函数的处理状态
 update_process_percent = 0.0  # update函数处理的完成率
-last_update = {"message": "Not updated yet!"} # 先写一个last_update
+last_update = {"message": "Not updated yet!"}  # 先写一个last_update
 
 
 def update_sync():
-    '''
+    """
     update函数同步部分
     :return: 回传给api的状态json
-    '''
+    """
     global update_task
     global database_last_update
     global last_update
-    if update_task is not None and update_task.done(): # 如果 上一个update_task已经完成
-        e = update_task.exception() # 先看看有没有报错
-        update_task = None # 完成后将其置None
+    if update_task is not None and update_task.done():  # 如果 上一个update_task已经完成
+        e = update_task.exception()  # 先看看有没有报错
+        update_task = None  # 完成后将其置None
         # last_update 情况
         if e is None:
             last_update = {"message": "Done!", "last_update": database_last_update}
         else:
             last_update = {"message": "Server Error", "last_update": database_last_update, "error": str(e)}
 
-    if update_task is None: # 如果当前没有update_task
+    if update_task is None:  # 如果当前没有update_task
         if time.time() - database_last_update > cool_down:  # 冷却时间
-            update_task = update_executor.submit(update) # 将update任务加入异步任务
-            database_last_update = time.time() # 并获得开始更新的时间
+            update_task = update_executor.submit(update)  # 将update任务加入异步任务
+            database_last_update = time.time()  # 并获得开始更新的时间
             return json.dumps({"result": True, "status": 0, "message": "Started!", "last_update": last_update}), 202
         else:
             return json.dumps(
-                {"result": False, "status": 2, "message": "Cooling Down...", "last_update": last_update}), 400
+                {"result": False, "status": 2, "message": "Cooling Down...", "last_update": last_update}), 403
     else:
         return json.dumps(
             {"result": True, "status": 1, "message": update_process, "percent": update_process_percent}), 202
@@ -114,11 +114,11 @@ def update():
     update_process = "INSERT INTO DATABASE"
     database.insert(con, essay_to_insert)  # 向数据库里push数据
 
-    if os.path.exists("pdf_list.tmp"): # 获取之前缓存的要拉取的pdf的文件
+    if os.path.exists("pdf_list.tmp"):  # 获取之前缓存的要拉取的pdf的文件
         temp_file = open("pdf_list.tmp")
         pdf_to_fetch.extend(json.loads(temp_file.read()))
         temp_file.close()
-    temp_file = open("pdf_list.tmp", "w") # 往pdf_list.tmp文件中放置当前要拉取的pdf，作为缓存
+    temp_file = open("pdf_list.tmp", "w")  # 往pdf_list.tmp文件中放置当前要拉取的pdf，作为缓存
     temp_file.write(json.dumps(pdf_to_fetch))
     temp_file.close()
 
@@ -129,24 +129,24 @@ def update():
         fetch.download_pdf(essay[0], essay[1])
         count = count + 1
 
-    if os.path.exists("pdf_list.tmp"): # 下载完毕，删除pdf_list.tmp
+    if os.path.exists("pdf_list.tmp"):  # 下载完毕，删除pdf_list.tmp
         os.remove("pdf_list.tmp")
     con.close()
 
 
 def return_update_process():
-    '''
+    """
     获取当前更新的情况，不进行update
     :return: 当前更新的情况
-    '''
+    """
     global update_task
-    if update_task is None: # 当前没有任务
-        return json.dumps({"status": 0, "message": "Not Updating"})
+    if update_task is None:  # 当前没有任务
+        return json.dumps({"status": 0, "message": "Not Updating"}), 200
     else:
-        if update_task.done(): # 当前任务已完成
-            return json.dumps({"status": 2, "message": "Done"})
-        else: # 当前任务进行中
-            return json.dumps({"status": 1, "message": update_process, "percent": update_process_percent})
+        if update_task.done():  # 当前任务已完成
+            return json.dumps({"status": 2, "message": "Done"}), 200
+        else:  # 当前任务进行中
+            return json.dumps({"status": 1, "message": update_process, "percent": update_process_percent}), 200
 
 
 if __name__ == 'main':

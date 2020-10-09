@@ -3,6 +3,8 @@ import requests
 import json
 import time
 import math
+import os
+import configparser
 
 from graia.application import GraiaMiraiApplication, Session
 from graia.application.event.messages import FriendMessage
@@ -14,6 +16,19 @@ from graia.broadcast import Broadcast
 
 loop = asyncio.get_event_loop()
 api_url = "http://localhost:10501"
+
+
+# 从设置文件中读api的地址
+if os.path.exists("config.ini"):
+    conf = configparser.ConfigParser()
+    conf.read("setting.ini")
+    api_url = conf.get("API", "API", fallback='http://localhost:10501')
+else:
+    conf = configparser.ConfigParser()
+    conf.add_section("API")
+    conf.set("API", "API", 'http://localhost:10501')
+    conf.write(open("config.ini", "w"))
+
 
 bcc = Broadcast(loop=loop)
 app = GraiaMiraiApplication(
@@ -71,12 +86,13 @@ async def group_message_handler(message: MessageChain, friend: Friend, graia_app
 
                 # 生成返回结果，一页5个最合适，此处用到了page来翻页
                 if len(response_json) == 0:
-                    await app.sendFriendMessage(friend, MessageChain.create([Plain("无返回结果")]))
+                    await app.sendFriendMessage(friend, MessageChain.create([Plain("找不到论文")]))
                     return
                 if start > math.ceil(len(response_json) / 5) or start <= 0:
                     await app.sendFriendMessage(friend, MessageChain.create([Plain("没有指定的页码")]))
                     return
-                return_str = "共为你找到{}篇论文，页码{}/{}：\r".format(len(response_json), start, math.ceil(len(response_json) / 5))
+                return_str = "共为你找到{}篇论文，页码{}/{}：\r".format(len(response_json), start,
+                                                            math.ceil(len(response_json) / 5))
                 for i in range((start - 1) * 5, len(response_json)):
                     if i >= (start - 1) * 5 + 5:
                         break
@@ -99,7 +115,7 @@ async def group_message_handler(message: MessageChain, friend: Friend, graia_app
                 # 构造查询用的json
                 data = {"key": "id", "query": arxiv_id, "strict": False}
                 headers = {'Content-Type': 'application/json'}
-                response = requests.get(url=api_url+"/query", headers=headers, data=json.dumps(data))
+                response = requests.get(url=api_url + "/query", headers=headers, data=json.dumps(data))
 
                 # 获取查询结果
                 try:
@@ -138,7 +154,7 @@ async def group_message_handler(message: MessageChain, friend: Friend, graia_app
                 return
 
         elif len(request_parm) == 1:
-            if request_parm[0].lower() == "update": # 传入值为update时，更新
+            if request_parm[0].lower() == "update":  # 传入值为update时，更新
 
                 # 发送更新指令
                 rq = requests.get(api_url + "/update")
@@ -154,8 +170,8 @@ async def group_message_handler(message: MessageChain, friend: Friend, graia_app
                 elif update_info["status"] == 1:
                     return_info = "正在更新中"
                 elif update_info["status"] == 2:
-                    return_info = "更新冷却中，请等待三小时"
-                else: # 备用分支，一般不触发
+                    return_info = "更新冷却中，请等待冷却结束"
+                else:  # 备用分支，一般不触发
                     await app.sendFriendMessage(friend, MessageChain.create([Plain(str("更新服务器错误"))]))
                     return
 
@@ -163,7 +179,7 @@ async def group_message_handler(message: MessageChain, friend: Friend, graia_app
                 if "last_update" in update_info:
                     last_update = update_info["last_update"]["message"]
                     last_update_time = update_info["last_update"]["last_update"]
-                    last_update_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_update_time)) # 格式化时间
+                    last_update_time_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(last_update_time))  # 格式化时间
                     return_string = return_info + "\r上次更新：" + last_update + "\r上次更新时间：" + last_update_time_str
                 elif "percent" in update_info:
                     # 格式化其中的百分比

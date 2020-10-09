@@ -19,13 +19,13 @@ def download_pdf(pdf_url, arxiv_id):
     """
     output_path = ".\\Artificial Intelligence\\" + arxiv_id.replace(":", "_") + ".pdf"
     trail_counter = 0
-    if not os.path.exists(output_path): # 如果没有该文件才拉取
+    if not os.path.exists(output_path):  # 如果没有该文件才拉取
         while True:
             try:
                 wget.download(pdf_url, out=output_path)
                 break
-            except Exception as e:
-                if trail_counter >= 5: # 多试一下，免得偶尔几次报错
+            except:
+                if trail_counter >= 5:  # 多试一下，免得偶尔几次报错
                     break
                 trail_counter = trail_counter + 1
 
