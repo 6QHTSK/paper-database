@@ -1,77 +1,166 @@
-## DAY 1-REPO
+## API 文档
 
-### 24：00 更新
+### /update
 
-学习beatifulsoup4库
+输入：无需参数
 
-了解arxiv网站架构，决定爬虫的拉取的网页和分析方式
+输出：
+如果更新完成等
 
-主要是在上课写作业，就没啥机会码代码
+result: 是否响应更新请求
 
-### 26：20更新
+status: 0，开始；1，更新中，2 更新冷却中
 
-开始进行拉取部分的代码搭建
+message: 更新信息
 
-更改了拉取网页的策略
+lastupdate: 上次更新的各项信息
 
-搭建了基础的爬虫，现在基本上可以达到层次一的内容
+其中：message：上次更新信息 last_update:上次更新时间 error:上次更新的错误
 
-对此爬虫进行了基础的测试，基本满足当前的拉取要求
+```json
 
-## DAY 2-REPO
+{
+  "result": true,
+  "status": 0,
+  "message": "Started!",
+  "last_update": {
+    "message": "Done!",
+    "last_update": 1602208918.4503858
+  }
+}
 
-### 24:30 更新
+```
 
-搭建数据库部分
+如果在更新进程中
 
-找了一个arxiv的官方api，不再从搜索列表里拉东西
+```json
 
-搭建main雏形
+{
+  "result": true,
+  "status": 1,
+  "message":"INITIATING",
+  "percent": 0.0
+}
+```
 
-## DAY 3-REPO
+若上次更新出现错误
 
-解决了拉取列表时更新造成提前停止拉取的bug
+```json
 
-搭建基础的下载pdf的程序（但是网太慢了）
+{"result": true,
+  "status": 0,
+  "message": "Started!",
+  "last_update":
+  {
+    "message": "Server Error",
+    "last_update": 1602208918.4503858,
+    "error": "ERROR..."
+  }
+}
+```
 
-## DAY 4-REPO
+### /query
 
-又是一天工程实训
+输入：json get方式
+例如：
 
-搭建了基础的flask框架，并于数据库进行了适配
+```json
+{
+  "key": "id",
+  "query": "2010",
+  "strict": false
+}
+```
 
-完善pdf下载功能
+key: 要查询的键值，key的值只能从下面输出的键中选取
 
-增加一个文件用于定时任务，定时拉取文件
+query: 查询字符串
 
-对update功能进行测试，20k+数据完全成功拉取。但是下载功能由于太多正在优化，校园网还行远程服务器难以下载，考虑反代服务器
+strict：置为false时进行模糊搜索
 
-计划明后日进行flask框架运行中debug，学习搭建机器人mirai框架等，搭建简单的前端演示框架
+输出一个json形式的列表，例如
 
-## DAY 5-REPO
+```json
+[
+    {
+        "id": "arxiv:2010.02178v1",
+        "title": "Mind the Pad -- CNNs can Develop Blind Spots",
+        "authors": [
+            "Bilal Alsallakh",
+            "Narine Kokhlikyan",
+            "Vivek Miglani",
+            "Jun Yuan",
+            "Orion Reblitz-Richardson"
+        ],
+        "summary": "We show how feature maps in convolutional networks are susceptible to spatialbias. Due to a combination of architectural choices, the activation at certainlocations is systematically elevated or weakened. The major source of this biasis the padding mechanism. Depending on several aspects of convolutionarithmetic, this mechanism can apply the padding unevenly, leading toasymmetries in the learned weights. We demonstrate how such bias can bedetrimental to certain tasks such as small object detection: the activation issuppressed if the stimulus lies in the impacted area, leading to blind spotsand misdetection. We propose solutions to mitigate spatial bias and demonstratehow they can improve model accuracy.",
+        "category": [
+            "cs.CV",
+            "cs.AI",
+            "stat.ML"
+        ],
+        "pdf": "http://arxiv.org/pdf/2010.02178v1",
+        "essay_details": "http://arxiv.org/abs/2010.02178v1",
+        "updated": 1601889888,
+        "published": 1601889888,
+        "primary_category": "cs.CV",
+        "comment": "Appendix E available at  https://drive.google.com/file/d/1bIvRQJIBwJbKTfpg0hNaFX2ThuuDO8PU/view?usp=sharing",
+        "journal_ref": null,
+        "doi": null
+    }
+]
+```
 
-flask 框架完全测试完成，准备写api文档
+id: arxiv_id, title: 论文标题
 
-优化了update函数的多线程处理，实时返回处理情况
+authors: 作者 summary: 摘要
 
-优化了项目结构，现在它看起来更清晰了？
+category: 论文标签 pdf: pdf文件下载地址
 
-开始进行机器人编写，学习mirai框架下的python-mirai
+essay_details: 论文详细信息网址
 
-决定忽略可能产生的论文更新问题。
+updated: 更新的时间戳 published: 首次上传的时间戳
 
-## DAY 6-7 REPO
+primary_category: 主要方向标签
 
-新增加pdf记忆存储，拉取的数据如果关闭之后需要拉取的pdf也会拉取
+comment：论文的comment
 
-优化了main.py结构，并添加计划任务
+journal_ref: 论文的journal_ref
 
-机器人编写完成，正常工作中，除了不能自动登录
+doi: 论文的doi
 
-不计划进行docker封装和关键词提取
+### /process
 
-明日上午将会整体添加注释，增加config文件等
+输入：无需参数
+输出：当前update任务的进行情况
+例如：
 
-拉取pdf如果未下载，会第一时间下载
+```json
+{
+  "status": 0,
+  "message": "Not Updating"
+}
+```
 
-目前进度：层次四进阶完成部分，层次五完成部分，其余已经完成
+```json
+{
+  "status": 1,
+  "message":"INITIATING",
+  "percent": 0.0
+}
+```
+
+```json
+{
+  "status": 2,
+  "message": "Done"
+}
+```
+
+status: 0 未进行更新，1 正在更新，2 上次更新已完成
+
+### /pdf/<arxiv_id>
+
+输入：<arxiv_id> 需要下载的论文的arxiv_id
+输出： pdf文件或者404
+
+如果没有该文件且数据库中含有该id记录，则会当场下载。

@@ -1,15 +1,9 @@
-"""
-用于拉取arxiv上的数据的程序部分
-内含函数：
-fetch_data
-"""
 from bs4 import BeautifulSoup
 import requests as rq
 from requests.adapters import HTTPAdapter
 import time
 import wget
 import os
-
 
 s = rq.Session()
 s.mount('http://', HTTPAdapter(max_retries=5))
@@ -25,16 +19,14 @@ def download_pdf(pdf_url, arxiv_id):
     """
     output_path = ".\\Artificial Intelligence\\" + arxiv_id.replace(":", "_") + ".pdf"
     trail_counter = 0
-    if not os.path.exists(output_path):
-        print("downloading essay: {}".format(arxiv_id))
+    if not os.path.exists(output_path): # 如果没有该文件才拉取
         while True:
             try:
-                wget.download(pdf_url, out=output_path, bar=wget.bar_thermometer)
+                wget.download(pdf_url, out=output_path)
                 break
             except Exception as e:
-                if trail_counter >= 5:
+                if trail_counter >= 5: # 多试一下，免得偶尔几次报错
                     break
-                print("RETRYING!: {}".format(e))
                 trail_counter = trail_counter + 1
 
 
@@ -62,7 +54,7 @@ def total_essay_number():
 
     search_soup = BeautifulSoup(search_result.text, features="html.parser")  # 使用BeautifulSoup识别网页
 
-    time.sleep(2) # 防止识别为爬虫
+    time.sleep(2)  # 防止识别为爬虫
 
     return True, int(search_soup.find("opensearch:totalresults").text)
 
@@ -135,7 +127,7 @@ def fetch_data(offset, max_results=100):
         essays.append(essay)  # 将本片文章加入文章的集合中
 
     essays.reverse()
-    time.sleep(2) # 防止识别为爬虫
+    time.sleep(2)  # 防止识别为爬虫
     return True, essays  # 返回文章集合,因为查询到的数据是从早到晚的，这里倒置所以从晚到早
 
 

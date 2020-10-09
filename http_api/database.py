@@ -1,10 +1,3 @@
-"""
-包装数据库接口的程序
-含有函数：
-init
-query
-insert
-"""
 import json
 
 
@@ -34,8 +27,8 @@ def query(con, key, query_str, strict=True):
     results = []
     available_keys = ["id", "title", "authors", "summary", "category", "pdf", "essay_details", "updated", "published",
                       "primary_category", "comment", "journal_ref", "doi"]
-    if key == "all":
-        sql = "SELECT * from essays where False"
+    if key == "all": # 如果是全部查询
+        sql = "SELECT * from essays where False" # 为了后面sql语句连接正常，避免复杂程序，在此加入False这个单位元
         sql_tuple = tuple()
         for key in available_keys:
             if strict:  # 是否使用模糊查询
@@ -46,7 +39,7 @@ def query(con, key, query_str, strict=True):
                 sql_tuple = sql_tuple + ("%" + query_str + "%",)
         cur.execute(sql, sql_tuple)
         raw_results = cur.fetchall()
-    elif key in available_keys:
+    elif key in available_keys: # 此处应该是特定值的查询
         if strict:  # 是否使用模糊查询
             cur.execute("SELECT * from essays where {} like ?".format(key), (query_str,))
         else:
@@ -70,7 +63,6 @@ def insert(con, essays):
     不经处理的向数据库插入一组论文信息
     :param con: 调用的数据库
     :param essays: 论文信息字典列表
-    :param last_updated: 插入截至的时间
     :return: None
     """
     cur = con.cursor()
@@ -91,8 +83,7 @@ def latest_update_time(con):
     """
     cur = con.cursor()
     cur.execute("SELECT max(updated) from essays")
-    last_update = cur.fetchone()[0]
-    if last_update is None:
+    last_update = cur.fetchone()[0] # 拉取最晚的时间戳
+    if last_update is None: # 存在空表的情况下
         last_update = 0
     return last_update
-

@@ -9,15 +9,33 @@ import fetch
 import database
 import update
 
+host = '0.0.0.0'
+port = 10501
+update_interval = 86400
+
+
+def init(init_host='0.0.0.0', init_port=10501, init_update_interval=86400):
+    '''
+    初始化main（即api)
+    :param init_host: 设置的host
+    :param init_port: 设置的端口号
+    :param init_update_interval:设置的更新时间
+    :return: 无返回
+    '''
+    global host, port, update_interval
+    host = init_host
+    port = init_port
+    update_interval = init_update_interval
+
 
 class SchedulerConfig(object):
     JOBS = [
         {
             'id': 'update',  # 任务id
-            'func': '__main__:update_request',  # 任务执行程序
+            'func': 'main:update_request',  # 任务执行程序
             'args': None,  # 执行程序参数
             'trigger': 'interval',  # 任务执行类型，定时器
-            'seconds': 86400,  # 任务执行时间，单位秒
+            'seconds': update_interval,  # 任务执行时间，单位秒
         }
     ]
 
@@ -68,18 +86,18 @@ def query():
     query_request = flask.request.get_json()
     key = query_request['key']
     query_string = query_request['query']
-    strict = query_request['strict']
+    strict = query_request['strict']  # 从输入中提取数字
     con = get_db()
     database.init(con)
-    if strict is None:
+    if strict is None:  # 防止传入数据不含strict
         strict = True
-    essays = database.query(con, key, query_string, strict)
+    essays = database.query(con, key, query_string, strict) # 在数据库中查询
     return json.dumps(essays), 200
 
 
 @server.route('/process')
 def return_update_process():
-    return update.return_update_process
+    return update.return_update_process()
 
 
 @server.route('/pdf/<arxiv_id>', methods=['get'])
@@ -90,10 +108,10 @@ def get_pdf(arxiv_id):
     :return: 下载的论文
     """
     filename = str(arxiv_id).replace(':', '_') + ".pdf"
-    filepath = os.path.join('.\\Artificial Intelligence\\', filename)
-    if os.path.exists(filepath):
+    filepath = os.path.join('.\\Artificial Intelligence\\', filename) # 得到pdf可能的路径
+    if os.path.exists(filepath): # 如果有文件，则发送
         return flask.send_file(filepath)
-    else:
+    else: # 如果没有，则尝试立即下载
         query_result = database.query(get_db(), 'id', arxiv_id)
         if len(query_result) == 1:
             fetch.download_pdf(query_result[0]['pdf'], arxiv_id)
@@ -102,9 +120,13 @@ def get_pdf(arxiv_id):
             return "", 404
 
 
-if __name__ == '__main__':
+def start():
+    '''
+    开启api
+    :return:无返回
+    '''
     update_request()
     scheduler = APScheduler()  # 实例化APScheduler
     scheduler.init_app(server)  # 把任务列表载入实例flask
     scheduler.start()  # 启动任务计划
-    server.run(port=10501, host='0.0.0.0')
+    server.run(port=port, host=host) # 运行api
