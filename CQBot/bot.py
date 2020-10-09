@@ -7,10 +7,8 @@ import os
 import configparser
 
 from graia.application import GraiaMiraiApplication, Session
-from graia.application.event.messages import FriendMessage
 from graia.application.friend import Friend
 from graia.application.message.chain import MessageChain
-from graia.application.group import Group
 from graia.application.message.elements.internal import Plain
 from graia.broadcast import Broadcast
 
@@ -56,15 +54,15 @@ async def group_message_handler(message: MessageChain, friend: Friend, graia_app
                 start = 1
                 for i in range(1, len(request_parm)):
                     parm = request_parm[i]
-                    if parm == "-key":
+                    if parm == "-key" or parm == "-k":
                         search[search_flag] = temp_str.strip()
                         search_flag = "key"
                         temp_str = ""
-                    elif parm == "-page":
+                    elif parm == "-page" or parm == "-p":
                         search[search_flag] = temp_str.strip()
                         search_flag = "page"
                         temp_str = ""
-                    elif parm == "-strict":
+                    elif parm == "-strict" or parm == "-s":
                         search[search_flag] = temp_str.strip()
                         search["strict"] = True
                         temp_str = ""
@@ -74,7 +72,7 @@ async def group_message_handler(message: MessageChain, friend: Friend, graia_app
                     search[search_flag] = temp_str.strip()
                 if search["page"].isdigit():
                     start = int(search["page"])
-                del search["page"]  # page 变量暂存与search字典中，search字典将会转化为json发送给服务器
+                del search["page"]  # page 变量暂存与search字典中，search字典将会转化为json发送给服务器，所以删除page这个键值对
 
                 headers = {'Content-Type': 'application/json'}
                 response = requests.get(url=api_url + "/query", headers=headers, data=json.dumps(search))  # 去拉取query结果
@@ -191,7 +189,7 @@ async def group_message_handler(message: MessageChain, friend: Friend, graia_app
                     return_string = return_info
                 await app.sendFriendMessage(friend, MessageChain.create([Plain(return_string)]))
             if request_parm[0].lower() == "help":
-                help_str = "search [查询字符串] [-key 查询键] [-page 页码][-strict]\r查询论文(添加 -strict 不使用模糊查询)\r" \
+                help_str = "search <查询字符串> [-key 查询特定键] [-page 页码][-strict]\r查询论文(添加 -strict 不使用模糊查询)\r" \
                            "detail [arxiv_id] 查询论文具体信息\r" \
                            "update 更新论文\r" \
                            "help 帮助"

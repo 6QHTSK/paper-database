@@ -11,37 +11,35 @@ import update
 
 host = '0.0.0.0'
 port = 10501
-update_interval = 86400
-
-
-def init(init_host='0.0.0.0', init_port=10501, init_update_interval=86400):
-    '''
-    初始化main（即api)
-    :param init_host: 设置的host
-    :param init_port: 设置的端口号
-    :param init_update_interval:设置的更新时间
-    :return: 无返回
-    '''
-    global host, port, update_interval
-    host = init_host
-    port = init_port
-    update_interval = init_update_interval
 
 
 class SchedulerConfig(object):
     JOBS = [
         {
             'id': 'update',  # 任务id
-            'func': 'main:update_request',  # 任务执行程序
+            'func': 'update:update',  # 任务执行程序
             'args': None,  # 执行程序参数
             'trigger': 'interval',  # 任务执行类型，定时器
-            'seconds': update_interval,  # 任务执行时间，单位秒
+            'seconds': 86400,  # 任务执行时间，单位秒
         }
     ]
 
 
+def init(init_host='0.0.0.0', init_port=10501, init_update_interval=86400):
+    """
+    初始化main（即api)
+    :param init_host: 设置的host
+    :param init_port: 设置的端口号
+    :param init_update_interval:设置的更新时间
+    :return: 无返回
+    """
+    global host, port
+    host = init_host
+    port = init_port
+    SchedulerConfig.JOBS[0]['seconds'] = init_update_interval
+
+
 server = flask.Flask(__name__)
-server.config.from_object(SchedulerConfig())
 
 
 def get_db():
@@ -83,14 +81,32 @@ def query():
     json传入，key：查询的列(输错返回空列表），query：查询字符串，strict：False为模糊查询
     :return: 查询到的论文
     """
+
+    # 从发来的数据中提取数据
     query_request = flask.request.get_json()
-    key = query_request['key']
-    query_string = query_request['query']
-    strict = query_request['strict']  # 从输入中提取数字
+    if 'key' in query_request:
+        key = query_request['key']
+    else:
+        key = None
+    if 'query' in query_request:
+        query_string = query_request['query']
+    else:
+        query_string = None
+    if 'strict' in query_request:
+        strict = query_request['strict']  # 从输入中提取数字
+    else:
+        strict = None
+
+    # 对发来数据中的None项处理
     con = get_db()
     database.init(con)
-    if strict is None:  # 防止传入数据不含strict
-        strict = True
+    if key is None:
+        key = "all"
+    if query_string is None:
+        return "Query shouldn't be None", 400
+    if strict is None:
+        strict = False
+
     essays = database.query(con, key, query_string, strict)  # 在数据库中查询
     return json.dumps(essays), 200
 
@@ -121,11 +137,12 @@ def get_pdf(arxiv_id):
 
 
 def start():
-    '''
+    """
     开启api
     :return:无返回
-    '''
+    """
     update_request()
+    server.config.from_object(SchedulerConfig())
     scheduler = APScheduler()  # 实例化APScheduler
     scheduler.init_app(server)  # 把任务列表载入实例flask
     scheduler.start()  # 启动任务计划
